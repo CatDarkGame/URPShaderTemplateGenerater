@@ -2,65 +2,72 @@ Shader "URP/Unlit/#NAME#"
 {
     Properties
     { 
-        _MainTex ("Main Texture", 2D) = "white" {}
-        _Color ("Color", Color) = (1, 1, 1, 1)
+        [MainTexture] _BaseMap("Texture", 2D) = "white" {}
+        [MainColor] _BaseColor("Color", Color) = (1, 1, 1, 1)
     }
 
     SubShader
     {
         Tags { "RenderType" = "Opaque" "Queue"="Geometry" "RenderPipeline" = "UniversalPipeline" }
-   
+        LOD 100
+
         Pass
         {
             Name  "URPUnlit"
             Tags {"LightMode" = "SRPDefaultUnlit"}
 
             HLSLPROGRAM
-
-            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
-
-            #pragma prefer_hlslcc gles  
-            #pragma exclude_renderers d3d11_9x 
+            #pragma target 4.5
+            #pragma exclude_renderers gles d3d9
             
             #pragma vertex vert
             #pragma fragment frag
 
-            struct appdata
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+
+
+            CBUFFER_START(UnityPerMaterial)
+                float4 _BaseMap_ST;
+                float4 _BaseColor;
+            CBUFFER_END
+
+            TEXTURE2D(_BaseMap);    SAMPLER(sampler_BaseMap);
+
+
+            struct Attributes
             {
-                float4 vertex : POSITION;
+                float4 positionOS : POSITION;
                 float2 uv : TEXCOORD0;
             };
 
-            struct v2f
+            struct Varyings
             {
-                float4 vertex : SV_POSITION;
+                float4 positionCS : SV_POSITION;
                 float2 uv : TEXCOORD0;
             }; 
             
 
-            TEXTURE2D(_MainTex);
-            SAMPLER(sampler_MainTex);
-
-            CBUFFER_START(UnityPerMaterial)
-                half4 _MainTex_ST;
-                float4 _Color;
-            CBUFFER_END
-
-
-            v2f vert(appdata v)
+            Varyings vert(Attributes input)
             {
-                v2f o;
-                o.vertex = TransformObjectToHClip(v.vertex.xyz);
-                o.uv = v.uv;
-                return o;
+                Varyings output = (Varyings)0;
+
+                float4 positionOS = input.positionOS;
+                float3 positionWS = TransformObjectToWorld(positionOS.xyz);
+                float3 positionVS = TransformWorldToView(positionWS);
+                float4 positionCS = TransformWViewToHClip(positionVS);
+
+                output.positionCS = positionCS;
+                output.uv = input.uv;
+                return output;
             }
 
-            float4 frag(v2f i) : SV_Target
+            float4 frag(Varyings input) : SV_Target
             {
-                float2 mainTexUV = i.uv.xy * _MainTex_ST.xy + _MainTex_ST.zw;
-                float4 col = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, mainTexUV);
+                float2 baseMapUV = input.uv.xy * _BaseMap_ST.xy + _BaseMap_ST.zw;
+                float4 texColor = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, baseMapUV);
                 
-                return col * _Color;
+                float4 finalColor = texColor * _BaseColor;
+                return finalColor;
             }
             
             ENDHLSL
