@@ -53,8 +53,8 @@ Shader "URP/Unlit/#NAME#"
 
                 float4 positionOS = input.positionOS;
                 float3 positionWS = TransformObjectToWorld(positionOS.xyz);
-                float3 positionVS = TransformWorldToView(positionWS);
-                float4 positionCS = TransformWViewToHClip(positionVS);
+                // float3 positionVS = TransformWorldToView(positionWS);
+                float4 positionCS = TransformWorldToHClip(positionWS);
 
                 output.positionCS = positionCS;
                 output.uv = input.uv;
